@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: gwan_python_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://gwan_user:gwan_password@db:5432/gwan_db
+      - DEBUG=False
+    depends_on:
+      - db
+    networks:
+      - gwan-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gwan-python.rule=Host(`api.gwan.com.br`)"
+      - "traefik.http.services.gwan-python.loadbalancer.server.port=8000"
+
+  db:
+    image: postgres:15-alpine
+    container_name: gwan_python_db
+    restart: always
+    environment:
+      - POSTGRES_USER=gwan_user
+      - POSTGRES_PASSWORD=gwan_password
+      - POSTGRES_DB=gwan_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - gwan-network
+
+volumes:
+  postgres_data:
+
+networks:
+  gwan-network:
+    external: true 
