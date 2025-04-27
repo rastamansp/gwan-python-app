@@ -8,7 +8,7 @@ services:
     container_name: gwan_python_api
     restart: always
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - DATABASE_URL=postgresql://gwan_user:gwan_password@db:5432/gwan_db
       - DEBUG=False
