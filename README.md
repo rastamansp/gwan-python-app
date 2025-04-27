@@ -101,7 +101,7 @@ docker-compose down
 - Ajuste as credenciais do banco de dados para valores seguros
 - Configure o domínio correto nas labels do Traefik
 - Os dados do PostgreSQL são persistidos no volume `postgres_data`
-- A aplicação está configurada para usar HTTPS com certificado Let's Encrypt
+- A aplicação está configurada para usar apenas HTTPS com certificado Let's Encrypt
 
 ## Testes
 
@@ -130,6 +130,8 @@ mkdocs serve
 ```
 
 ## Endpoints da API
+
+Todos os endpoints são acessíveis apenas via HTTPS:
 
 - `https://api.gwan.com.br/`: Página inicial
 - `https://api.gwan.com.br/docs`: Documentação interativa da API (Swagger UI)
