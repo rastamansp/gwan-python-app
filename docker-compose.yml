@@ -19,6 +19,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gwan-python.rule=Host(`api.gwan.com.br`)"
+      - "traefik.http.routers.gwan-python.entrypoints=websecure"
+      - "traefik.http.routers.gwan-python.tls=true"
+      - "traefik.http.routers.gwan-python.tls.certresolver=letsencrypt"
       - "traefik.http.services.gwan-python.loadbalancer.server.port=8000"
 
   db:
