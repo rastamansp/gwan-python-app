@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
     netcat-traditional \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia os arquivos de requisitos
@@ -16,8 +17,10 @@ COPY requirements.txt .
 
 # Instala as dependências Python
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install psycopg2-binary \
-    && pip install docling==0.0.1
+    && pip install psycopg2-binary
+
+# Instala o docling diretamente do GitHub
+RUN pip install git+https://github.com/rastamansp/docling.git@main
 
 # Copia o código da aplicação
 COPY . .
