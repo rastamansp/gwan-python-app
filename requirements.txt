@@ -20,4 +20,11 @@ isort==5.12.0
 
 # Documentation
 mkdocs==1.5.3
-mkdocs-material==9.4.14 
+mkdocs-material==9.4.14
+
+# PDF Processing
+docling==0.1.0
+python-multipart==0.0.6
+
+# OpenAI
+openai==1.3.0 
