@@ -25,5 +25,9 @@ COPY . .
 # Expõe a porta 8000
 EXPOSE 8000
 
+# Script de inicialização
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Comando para iniciar a aplicação
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"] 
+ENTRYPOINT ["/docker-entrypoint.sh"] 
