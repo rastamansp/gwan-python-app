@@ -18,10 +18,19 @@ services:
       - gwan
     labels:
       - "traefik.enable=true"
+      # Configuração HTTP
+      - "traefik.http.routers.gwan-python-http.rule=Host(`api.gwan.com.br`)"
+      - "traefik.http.routers.gwan-python-http.entrypoints=web"
+      - "traefik.http.routers.gwan-python-http.middlewares=redirect-to-https"
+      # Configuração HTTPS
       - "traefik.http.routers.gwan-python.rule=Host(`api.gwan.com.br`)"
       - "traefik.http.routers.gwan-python.entrypoints=websecure"
       - "traefik.http.routers.gwan-python.tls=true"
       - "traefik.http.routers.gwan-python.tls.certresolver=letsencrypt"
+      # Middleware de redirecionamento
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+      # Configuração do serviço
       - "traefik.http.services.gwan-python.loadbalancer.server.port=8000"
 
   db:
