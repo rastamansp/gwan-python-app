@@ -97,7 +97,7 @@ docker-compose down
 
 #### Observações para Implantação
 
-- Certifique-se de que a rede `gwan-network` existe na VPS
+- A aplicação usa a rede `gwan` existente no ambiente
 - Ajuste as credenciais do banco de dados para valores seguros
 - Configure o domínio correto nas labels do Traefik
 - Os dados do PostgreSQL são persistidos no volume `postgres_data`
