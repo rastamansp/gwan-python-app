@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   api:
-    build: .
+    build: 
+      context: https://github.com/rastamansp/gwan-python-app.git
+      dockerfile: Dockerfile
     container_name: gwan_python_api
     restart: always
     ports:
@@ -13,7 +15,7 @@ services:
     depends_on:
       - db
     networks:
-      - gwan-network
+      - gwan
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.gwan-python.rule=Host(`api.gwan.com.br`)"
@@ -30,11 +32,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - gwan-network
+      - gwan
 
 volumes:
   postgres_data:
 
 networks:
-  gwan-network:
+  gwan:
     external: true 
