@@ -4,20 +4,19 @@ FROM python:3.11-slim
 # Define o diretório de trabalho
 WORKDIR /app
 
-# Copia os arquivos de requisitos
-COPY requirements.txt .
-
-# Instala as dependências
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Instala o driver do PostgreSQL
+# Instala dependências do sistema
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
-    && pip install psycopg2-binary \
-    && apt-get remove -y gcc \
-    && apt-get autoremove -y \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
+
+# Copia os arquivos de requisitos
+COPY requirements.txt .
+
+# Instala as dependências Python
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install psycopg2-binary
 
 # Copia o código da aplicação
 COPY . .
