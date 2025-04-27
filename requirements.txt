@@ -23,7 +23,7 @@ mkdocs==1.5.3
 mkdocs-material==9.4.14
 
 # PDF Processing
-docling==0.1.0
+docling==0.0.1
 python-multipart==0.0.6
 
 # OpenAI

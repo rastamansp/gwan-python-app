@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from src.database.config import Base
+from src.models.pdf_processing import PDFProcessing
 
 class User(Base):
     __tablename__ = "users"

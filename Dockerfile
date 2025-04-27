@@ -16,7 +16,8 @@ COPY requirements.txt .
 
 # Instala as dependências Python
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install psycopg2-binary
+    && pip install psycopg2-binary \
+    && pip install docling==0.0.1
 
 # Copia o código da aplicação
 COPY . .

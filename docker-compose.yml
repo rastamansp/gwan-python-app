@@ -16,6 +16,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=root
       - RABBITMQ_PASSWORD=pazdeDeus2025
+      - PYTHONPATH=/app
     depends_on:
       - db
     networks:
@@ -44,6 +45,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=root
       - RABBITMQ_PASSWORD=pazdeDeus2025
+      - PYTHONPATH=/app
     depends_on:
       - db
     networks:
