@@ -1,0 +1,69 @@
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: gwan_python_api_dev
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://gwan_user:gwan_password@db:5432/gwan_db
+      - DEBUG=True
+      - RABBITMQ_HOST=rabbitmq.gwan.com.br
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=root
+      - RABBITMQ_PASSWORD=pazdeDeus2025
+      - PYTHONPATH=/app
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    networks:
+      - gwan_dev
+
+  worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: gwan_python_worker_dev
+    restart: always
+    command: python -m src.workers.pdf_worker
+    environment:
+      - DATABASE_URL=postgresql://gwan_user:gwan_password@db:5432/gwan_db
+      - DEBUG=True
+      - RABBITMQ_HOST=rabbitmq.gwan.com.br
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=root
+      - RABBITMQ_PASSWORD=pazdeDeus2025
+      - PYTHONPATH=/app
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+    networks:
+      - gwan_dev
+
+  db:
+    image: postgres:15-alpine
+    container_name: gwan_python_db_dev
+    restart: always
+    environment:
+      - POSTGRES_USER=gwan_user
+      - POSTGRES_PASSWORD=gwan_password
+      - POSTGRES_DB=gwan_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - gwan_dev
+
+volumes:
+  postgres_data_dev:
+
+networks:
+  gwan_dev:
+    name: gwan_dev 
