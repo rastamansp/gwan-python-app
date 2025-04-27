@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.users import router as users_router
 from src.api.pdf import router as pdf_router
+from src.api.convert import router as convert_router
 
 app = FastAPI(
     title="Gwan Python App",
@@ -22,6 +23,7 @@ app.add_middleware(
 # Inclui os routers
 app.include_router(users_router)
 app.include_router(pdf_router)
+app.include_router(convert_router)
 
 @app.get("/")
 async def root():
