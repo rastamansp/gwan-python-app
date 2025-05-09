@@ -142,3 +142,41 @@ Todos os endpoints são acessíveis apenas via HTTPS:
 ## Licença
 
 MIT 
+
+## Como rodar o worker Knowledge Worker
+
+O worker `knowledge_worker` é responsável pelo processamento assíncrono das mensagens da fila (RabbitMQ).
+
+### Usando Docker
+
+Se estiver usando Docker Compose, o serviço do worker já pode estar definido no `docker-compose.yml`. Para subir tudo:
+
+```sh
+docker-compose up --build
+```
+
+Se quiser rodar apenas o worker manualmente dentro do container, execute:
+
+```sh
+docker-compose run --rm app python src/workers/knowledge_worker.py
+```
+
+### Rodando Localmente (sem Docker)
+
+1. **Ative o ambiente virtual:**
+   ```sh
+   source venv/bin/activate  # Linux/macOS
+   venv\Scripts\activate     # Windows
+   ```
+
+2. **Instale as dependências:**
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+3. **Execute o worker:**
+   ```sh
+   python src/workers/knowledge_worker.py
+   ```
+
+> **Obs:** Certifique-se de que as variáveis de ambiente necessárias (como conexão com RabbitMQ, MongoDB, etc.) estejam configuradas corretamente. 
