@@ -1,9 +1,9 @@
-from infrastructure.config import get_env
-from infrastructure.logger import get_logger
-from core.services.mongo_service import MongoService
-from core.services.minio_service import MinioService
-from core.services.rabbitmq_service import RabbitMQService
-from core.usecases.process_knowledge_message import ProcessKnowledgeMessage
+from src.infrastructure.config import get_env
+from src.infrastructure.logger import get_logger
+from src.core.services.mongo_service import MongoService
+from src.core.services.minio_service import MinioService
+from src.core.services.rabbitmq_service import RabbitMQService
+from src.core.usecases.process_knowledge_message import ProcessKnowledgeMessage
 
 
 def main():

@@ -1,3 +1,7 @@
+from bson import ObjectId
+import json
+import os
+
 class ProcessKnowledgeMessage:
     def __init__(self, mongo_service, minio_service, logger):
         self.mongo = mongo_service
@@ -6,8 +10,6 @@ class ProcessKnowledgeMessage:
 
     def execute(self, ch, method, properties, body):
         try:
-            import json
-            import os
             self.logger.info("\n==================== INÍCIO DO PROCESSAMENTO DA MENSAGEM ====================")
             self.logger.info("Mensagem recebida do RabbitMQ!")
             self.logger.info(f"Conteúdo bruto: {body}")
@@ -18,19 +20,19 @@ class ProcessKnowledgeMessage:
             self.logger.info("-- Validação dos campos obrigatórios --")
             knowledge_base_id = message.get('knowledgeBaseId')
             user_id = message.get('userId')
-            filename = message.get('filename')
-            if not knowledge_base_id or not user_id or not filename:
-                self.logger.error("[ERRO] Campos obrigatórios knowledgeBaseId, userId e filename não informados!")
+            bucket_file_id = message.get('bucketFileId')
+            if not knowledge_base_id or not user_id or not bucket_file_id:
+                self.logger.error("[ERRO] Campos obrigatórios knowledgeBaseId, userId e bucketFileId não informados!")
                 self.logger.info("==================== FIM DO PROCESSAMENTO DA MENSAGEM ====================\n")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
             self.logger.info(f"knowledgeBaseId: {knowledge_base_id}")
             self.logger.info(f"userId: {user_id}")
-            self.logger.info(f"filename: {filename}")
+            self.logger.info(f"bucketFileId: {bucket_file_id}")
 
             # 2. Buscar knowledge base
             self.logger.info("-- Buscando KnowledgeBase no MongoDB --")
-            kb = self.mongo.db.knowledgebases.find_one({'_id': knowledge_base_id})
+            kb = self.mongo.db.knowledgebases.find_one({'_id': ObjectId(knowledge_base_id)})
             if kb:
                 self.logger.info(f"KnowledgeBase encontrada: {json.dumps(kb, default=str, indent=2)}")
             else:
@@ -38,17 +40,17 @@ class ProcessKnowledgeMessage:
 
             # 3. Buscar usuário
             self.logger.info("-- Buscando Usuário no MongoDB --")
-            user = self.mongo.db.users.find_one({'_id': user_id})
+            user = self.mongo.db.users.find_one({'_id': ObjectId(user_id)})
             if user:
                 self.logger.info(f"Usuário encontrado: {json.dumps(user, default=str, indent=2)}")
             else:
                 self.logger.warning(f"[AVISO] Usuário não encontrado para o id: {user_id}")
 
-            # 4. Buscar arquivo correto do usuário
+            # 4. Buscar arquivo pelo bucketFileId
             self.logger.info("-- Buscando Arquivo no MongoDB --")
-            file_doc = self.mongo.db.bucketfiles.find_one({'userId': user_id, 'filename': filename})
+            file_doc = self.mongo.db.bucketfiles.find_one({'_id': ObjectId(bucket_file_id)})
             if not file_doc:
-                self.logger.error(f"[ERRO] Arquivo '{filename}' não encontrado para o usuário {user_id}")
+                self.logger.error(f"[ERRO] Arquivo com bucketFileId '{bucket_file_id}' não encontrado")
                 self.logger.info("==================== FIM DO PROCESSAMENTO DA MENSAGEM ====================\n")
                 ch.basic_ack(delivery_tag=method.delivery_tag)
                 return
@@ -56,7 +58,14 @@ class ProcessKnowledgeMessage:
 
             # 5. Baixar arquivo do MinIO para a pasta tmp
             self.logger.info("-- Baixando arquivo do MinIO --")
-            bucket = file_doc.get('bucket', 'datasets')
+            bucket = file_doc.get('bucketName', 'datasets')  # Usando bucketName do documento
+            filename = file_doc.get('fileName')  # Usando fileName do documento
+            if not filename:
+                self.logger.error("[ERRO] Campo fileName não encontrado no documento do arquivo")
+                self.logger.info("==================== FIM DO PROCESSAMENTO DA MENSAGEM ====================\n")
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
+
             minio_tmp_folder = os.getenv('MINIO_TMP_FOLDER', 'tmp')
             os.makedirs(minio_tmp_folder, exist_ok=True)
             local_path = os.path.join(minio_tmp_folder, filename)

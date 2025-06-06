@@ -1,5 +1,5 @@
 # Web Framework
-fastapi==0.110.0
+fastapi>=0.110.0
 uvicorn==0.27.1
 
 # Database
@@ -22,13 +22,15 @@ isort==5.12.0
 
 # Documentation
 mkdocs==1.5.3
-mkdocs-material==9.4.14
+mkdocs-material>=9.4.14
 
 # PDF Processing
 python-multipart==0.0.9
+docling==2.31.0
+tqdm>=4.66.1
 
 # OpenAI
-openai==1.3.0
+openai>=1.3.0
 
 # MinIO
 minio==7.2.5
@@ -41,8 +43,8 @@ celery==5.3.6
 python-jose==3.3.0
 passlib==1.7.4
 bcrypt==4.1.2
-pydantic==2.6.3
-pydantic-settings==2.2.1
+pydantic>=2.7.0,<3.0.0
+pydantic-settings>=2.3.0,<3.0.0
 email-validator==2.1.0.post1
 
 # Message Queue
@@ -52,6 +54,6 @@ pika==1.3.2
 minio==7.2.5
 
 # Utils
-requests==2.31.0
+requests>=2.32.2,<3.0.0
 aiohttp==3.9.3
 tenacity==8.2.3 
