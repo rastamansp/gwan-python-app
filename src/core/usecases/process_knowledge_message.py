@@ -5,6 +5,11 @@ from pathlib import Path
 from docling.document_converter import DocumentConverter
 from datetime import datetime
 import logging
+from typing import Dict, Any
+from src.core.repositories.knowledge_base_repository import KnowledgeBaseRepository
+from src.core.repositories.bucket_file_repository import BucketFileRepository
+from src.core.repositories.user_repository import UserRepository
+from src.core.services.document_processor_service import DocumentProcessorService
 
 class ProcessKnowledgeMessage:
     def __init__(self, mongo_service, minio_service, logger, vector_db_service):
@@ -25,6 +30,11 @@ class ProcessKnowledgeMessage:
         logging.getLogger('docling.utils.accelerator_utils').setLevel(logging.WARNING)
         logging.getLogger('docling.pipeline.base_pipeline').setLevel(logging.WARNING)
 
+        self.kb_repository = KnowledgeBaseRepository(mongo_service)
+        self.file_repository = BucketFileRepository(mongo_service)
+        self.user_repository = UserRepository(mongo_service)
+        self.doc_processor = DocumentProcessorService(minio_service, logger)
+
     def execute(self, ch, method, properties, body):
         try:
             self.logger.info("\n==================== INÍCIO DO PROCESSAMENTO ====================")
@@ -35,151 +45,112 @@ class ProcessKnowledgeMessage:
             knowledge_base_id = message.get('knowledgeBaseId')
             user_id = message.get('userId')
             bucket_file_id = message.get('bucketFileId')
-            if not knowledge_base_id or not user_id or not bucket_file_id:
-                self.logger.error("[ERRO] Campos obrigatórios não informados")
-                self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
+            if not self._validate_required_fields(knowledge_base_id, user_id, bucket_file_id):
+                self._ack_message(ch, method)
                 return
 
-            # 2. Buscar knowledge base
-            kb = self.mongo.db.knowledgebases.find_one({'_id': ObjectId(knowledge_base_id)})
-            if not kb:
-                self.logger.error(f"[ERRO] KnowledgeBase não encontrada: {knowledge_base_id}")
-                self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
+            # 2. Buscar e validar dados
+            kb, user, file_doc = self._fetch_and_validate_data(knowledge_base_id, user_id, bucket_file_id)
+            if not all([kb, user, file_doc]):
+                self._ack_message(ch, method)
                 return
 
-            # 3. Buscar usuário no MongoDB
-            mongo_user = self.mongo.db.users.find_one({'_id': ObjectId(user_id)})
-            if not mongo_user:
-                self.logger.error(f"[ERRO] Usuário não encontrado: {user_id}")
-                self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                return
-
-            # 4. Buscar arquivo pelo bucketFileId
-            file_doc = self.mongo.db.bucketfiles.find_one({'_id': ObjectId(bucket_file_id)})
-            if not file_doc:
-                self.logger.error(f"[ERRO] Arquivo não encontrado: {bucket_file_id}")
-                self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                return
-
-            # 5. Baixar arquivo do MinIO para a pasta tmp
-            bucket = file_doc.get('bucketName', 'datasets')
-            filename = file_doc.get('fileName')
-            original_name = file_doc.get('originalName', filename)
-            if not filename:
-                self.logger.error("[ERRO] Campo fileName não encontrado")
-                self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                return
-
-            minio_tmp_folder = os.getenv('MINIO_TMP_FOLDER', 'tmp')
-            os.makedirs(minio_tmp_folder, exist_ok=True)
-            local_path = os.path.join(minio_tmp_folder, filename)
-            
+            # 3. Processar o documento
             try:
-                self.minio.client.fget_object(bucket, filename, local_path)
-            except Exception as e:
-                self.logger.error(f"[ERRO] Falha ao baixar arquivo: {e}")
-                self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
-                ch.basic_ack(delivery_tag=method.delivery_tag)
-                return
+                # Baixar e processar o arquivo
+                bucket = file_doc.get('bucketName', 'datasets')
+                filename = file_doc.get('fileName')
+                original_name = file_doc.get('originalName', filename)
+                
+                markdown_path, markdown_content = self.doc_processor.download_and_process_file(
+                    bucket, filename, original_name
+                )
 
-            # 6. Processar o PDF e converter para markdown
-            try:
-                # Converte PDF para markdown
-                result = self.converter.convert(str(local_path))
-                markdown_content = result.document.export_to_markdown()
+                # Preparar metadados
+                metadata = self.doc_processor.prepare_metadata(
+                    user_id=str(user_id),
+                    user_name=user.get('name', ''),
+                    user_email=user.get('email', ''),
+                    file_name=original_name,
+                    file_id=str(bucket_file_id),
+                    knowledge_base_id=str(knowledge_base_id),
+                    knowledge_base_name=kb.get('name', ''),
+                    markdown_path=markdown_path,
+                    bucket_name=bucket,
+                    original_file_name=filename
+                )
 
-                # Salva o markdown na pasta de processados
-                markdown_filename = f"{Path(original_name).stem}.md"
-                markdown_path = self.processed_dir / markdown_filename
-                with open(markdown_path, 'w', encoding='utf-8') as f:
-                    f.write(markdown_content)
-
-                # 7. Armazenar embeddings no PostgreSQL
-                metadata = {
-                    "userId": str(user_id),
-                    "userName": mongo_user.get('name', ''),
-                    "userEmail": mongo_user.get('email', ''),
-                    "fileName": original_name,
-                    "fileId": str(bucket_file_id),
-                    "knowledgeBaseId": str(knowledge_base_id),
-                    "knowledgeBaseName": kb.get('name', '') if kb else '',
-                    "markdownPath": str(markdown_path),
-                    "processedAt": datetime.utcnow().isoformat(),
-                    "bucketName": bucket,
-                    "originalFileName": filename
-                }
-
-                # Divide o conteúdo em chunks menores para processamento
-                chunks = self._split_content(markdown_content)
+                # Processar embeddings
+                chunks = self.doc_processor.split_content(markdown_content)
                 self.vector_db.store_embeddings_batch(chunks, metadata)
                 self.logger.info(f"[OK] Processamento concluído: {len(chunks)} chunks processados")
 
-                # Atualiza o status do arquivo no MongoDB
-                self.mongo.db.bucketfiles.update_one(
-                    {'_id': ObjectId(bucket_file_id)},
-                    {
-                        '$set': {
-                            'status': 'completed',
-                            'markdownPath': str(markdown_path),
-                            'updatedAt': datetime.utcnow(),
-                            'embeddingsStored': True,
-                            'totalChunks': len(chunks)
-                        }
-                    }
+                # Atualizar status
+                self.file_repository.update_processing_status(
+                    bucket_file_id,
+                    status='completed',
+                    markdown_path=markdown_path,
+                    total_chunks=len(chunks)
                 )
-
-                # Atualiza o status da knowledge base
-                self.mongo.db.knowledgebases.update_one(
-                    {'_id': ObjectId(knowledge_base_id)},
-                    {
-                        '$set': {
-                            'status': 'completed',
-                            'updatedAt': datetime.utcnow(),
-                            'lastProcessedFile': str(bucket_file_id),
-                            'lastProcessedAt': datetime.utcnow()
-                        }
-                    }
-                )
+                self.kb_repository.update_after_processing(knowledge_base_id, bucket_file_id)
 
             except Exception as e:
                 self.logger.error(f"[ERRO] Falha no processamento: {e}")
-                # Atualiza o status do arquivo para failed
-                self.mongo.db.bucketfiles.update_one(
-                    {'_id': ObjectId(bucket_file_id)},
-                    {
-                        '$set': {
-                            'status': 'failed',
-                            'error': str(e),
-                            'updatedAt': datetime.utcnow()
-                        }
-                    }
-                )
-
-                # Atualiza o status da knowledge base para erro
-                self.mongo.db.knowledgebases.update_one(
-                    {'_id': ObjectId(knowledge_base_id)},
-                    {
-                        '$set': {
-                            'status': 'error',
-                            'lastError': str(e),
-                            'updatedAt': datetime.utcnow()
-                        }
-                    }
-                )
-            finally:
-                # Remove o arquivo temporário
-                if os.path.exists(local_path):
-                    os.remove(local_path)
+                self._handle_processing_error(knowledge_base_id, bucket_file_id, str(e))
 
             self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
+            
         except Exception as e:
             self.logger.error(f"[ERRO] Falha geral: {e}")
             self.logger.info("==================== FIM DO PROCESSAMENTO ====================\n")
+            
+        self._ack_message(ch, method)
+
+    def _validate_required_fields(self, knowledge_base_id: str, user_id: str, bucket_file_id: str) -> bool:
+        """Valida os campos obrigatórios da mensagem."""
+        if not knowledge_base_id or not user_id or not bucket_file_id:
+            self.logger.error("[ERRO] Campos obrigatórios não informados")
+            return False
+        return True
+
+    def _fetch_and_validate_data(self, knowledge_base_id: str, user_id: str, bucket_file_id: str) -> tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+        """Busca e valida os dados necessários para o processamento."""
+        kb = self.kb_repository.find_by_id(knowledge_base_id)
+        if not kb:
+            self.logger.error(f"[ERRO] KnowledgeBase não encontrada: {knowledge_base_id}")
+            return None, None, None
+
+        user = self.user_repository.find_by_id(user_id)
+        if not user:
+            self.logger.error(f"[ERRO] Usuário não encontrado: {user_id}")
+            return None, None, None
+
+        file_doc = self.file_repository.find_by_id(bucket_file_id)
+        if not file_doc:
+            self.logger.error(f"[ERRO] Arquivo não encontrado: {bucket_file_id}")
+            return None, None, None
+
+        if not file_doc.get('fileName'):
+            self.logger.error("[ERRO] Campo fileName não encontrado")
+            return None, None, None
+
+        return kb, user, file_doc
+
+    def _handle_processing_error(self, knowledge_base_id: str, bucket_file_id: str, error: str) -> None:
+        """Atualiza o status em caso de erro no processamento."""
+        self.file_repository.update_processing_status(
+            bucket_file_id,
+            status='failed',
+            error=error
+        )
+        self.kb_repository.update_status(
+            knowledge_base_id,
+            status='error',
+            error=error
+        )
+
+    def _ack_message(self, ch, method) -> None:
+        """Confirma o processamento da mensagem."""
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def _split_content(self, content: str, max_chunk_size: int = 1000) -> list:

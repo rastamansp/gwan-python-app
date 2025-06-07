@@ -1,182 +1,214 @@
 # Gwan Python App
 
-Aplicação Python para a Gwan Company.
+Aplicação Python para processamento e gerenciamento de conhecimento baseado em documentos.
 
-## Requisitos
+## 🚀 Visão Geral
 
-- Python 3.8+
-- pip (gerenciador de pacotes Python)
-- virtualenv ou venv (para ambiente virtual)
-- Docker e Docker Compose (para implantação em container)
+O Gwan Python App é uma aplicação que processa documentos (PDFs) e os converte em conhecimento estruturado através de embeddings vetoriais. A aplicação utiliza uma arquitetura baseada em microserviços, com workers assíncronos para processamento de documentos e uma API REST para gerenciamento.
 
-## Instalação Local
+### Principais Funcionalidades
 
-1. Clone o repositório:
-```bash
-git clone https://github.com/rastamansp/gwan-python-app.git
-cd gwan-python-app
+- Processamento assíncrono de documentos PDF
+- Conversão de PDF para Markdown
+- Geração de embeddings vetoriais
+- Armazenamento em banco de dados vetorial
+- API REST para gerenciamento
+- Sistema de filas para processamento assíncrono
+
+## 🏗️ Arquitetura
+
+### Componentes Principais
+
+1. **API REST (FastAPI)**
+   - Endpoints para gerenciamento de knowledge bases
+   - Autenticação e autorização
+   - Upload e download de documentos
+
+2. **Workers**
+   - `knowledge_worker.py`: Processa documentos e gera embeddings
+   - `pdf_worker.py`: Processamento específico de PDFs
+
+3. **Serviços**
+   - `VectorService`: Gerenciamento de embeddings
+   - `MongoService`: Operações no MongoDB
+   - `MinioService`: Armazenamento de arquivos
+   - `RabbitmqService`: Gerenciamento de filas
+
+4. **Repositórios**
+   - `KnowledgeBaseRepository`: Operações com knowledge bases
+   - `BucketFileRepository`: Gerenciamento de arquivos
+   - `UserRepository`: Operações com usuários
+
+### Diagrama de Arquitetura
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│    API      │     │   Workers   │     │  Serviços   │
+│  (FastAPI)  │◄────┤  (RabbitMQ) │◄────┤  (MongoDB)  │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │
+       │                   │                   │
+       ▼                   ▼                   ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  MinIO      │     │ PostgreSQL  │     │  MongoDB    │
+│ (Arquivos)  │     │(Embeddings) │     │ (Metadata)  │
+└─────────────┘     └─────────────┘     └─────────────┘
 ```
 
-2. Crie um ambiente virtual:
-```bash
-python -m venv venv
-```
+## 🛠️ Tecnologias Utilizadas
 
-3. Ative o ambiente virtual:
-- Windows:
-```bash
-.\venv\Scripts\activate
-```
-- Linux/Mac:
-```bash
-source venv/bin/activate
-```
+- **Python 3.9+**
+- **FastAPI**: Framework web
+- **MongoDB**: Banco de dados para metadados
+- **PostgreSQL**: Banco de dados vetorial
+- **MinIO**: Armazenamento de arquivos
+- **RabbitMQ**: Sistema de mensageria
+- **Docling**: Processamento de documentos
+- **OpenAI**: Geração de embeddings
 
-4. Instale as dependências:
-```bash
-pip install -r requirements.txt
-```
+## 📦 Instalação
 
-## Estrutura do Projeto
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/rastamansp/gwan-python-app.git
+   cd gwan-python-app
+   ```
 
-```
-gwan-python-app/
-├── src/                    # Código fonte
-│   ├── api/               # Endpoints da API
-│   ├── core/              # Lógica de negócios
-│   ├── database/          # Configuração do banco de dados
-│   └── models/            # Modelos de dados
-├── tests/                 # Testes
-├── docs/                  # Documentação
-├── .env.example          # Exemplo de variáveis de ambiente
-├── requirements.txt      # Dependências do projeto
-├── docker-compose.yml    # Configuração do Docker Compose
-├── Dockerfile           # Configuração do container da aplicação
-└── README.md            # Este arquivo
-```
-
-## Desenvolvimento Local
-
-Para iniciar o servidor de desenvolvimento:
-
-```bash
-uvicorn src.main:app --reload
-```
-
-## Implantação com Docker
-
-### Implantação Local com Docker Compose
-
-1. Construa e inicie os containers:
-```bash
-docker-compose up -d --build
-```
-
-2. Verifique os logs:
-```bash
-docker-compose logs -f
-```
-
-3. Para parar os containers:
-```bash
-docker-compose down
-```
-
-### Implantação na VPS (Hostinger) com Portainer
-
-1. Acesse o Portainer na sua VPS
-2. Vá para "Stacks" e clique em "Add stack"
-3. Dê um nome para a stack (ex: "gwan-python-app")
-4. Cole o conteúdo do arquivo `docker-compose.yml`
-5. Ajuste as variáveis de ambiente conforme necessário:
-   - `POSTGRES_USER`
-   - `POSTGRES_PASSWORD`
-   - `DATABASE_URL`
-6. Configure o domínio no Traefik (atualmente definido como `api.gwan.com.br`)
-7. Clique em "Deploy the stack"
-
-#### Observações para Implantação
-
-- A aplicação usa a rede `gwan` existente no ambiente
-- Ajuste as credenciais do banco de dados para valores seguros
-- Configure o domínio correto nas labels do Traefik
-- Os dados do PostgreSQL são persistidos no volume `postgres_data`
-- A aplicação está configurada para usar apenas HTTPS com certificado Let's Encrypt
-
-## Testes
-
-Para executar os testes:
-
-```bash
-pytest
-```
-
-## Formatação de Código
-
-Para formatar o código:
-
-```bash
-black .
-isort .
-flake8
-```
-
-## Documentação
-
-A documentação está disponível em Markdown na pasta `docs/`. Para gerar a documentação HTML:
-
-```bash
-mkdocs serve
-```
-
-## Endpoints da API
-
-Todos os endpoints são acessíveis apenas via HTTPS:
-
-- `https://api.gwan.com.br/`: Página inicial
-- `https://api.gwan.com.br/docs`: Documentação interativa da API (Swagger UI)
-- `https://api.gwan.com.br/redoc`: Documentação alternativa (ReDoc)
-- `https://api.gwan.com.br/health`: Status da API
-- `https://api.gwan.com.br/users`: Endpoints de usuários
-
-## Licença
-
-MIT 
-
-## Como rodar o worker Knowledge Worker
-
-O worker `knowledge_worker` é responsável pelo processamento assíncrono das mensagens da fila (RabbitMQ).
-
-### Usando Docker
-
-Se estiver usando Docker Compose, o serviço do worker já pode estar definido no `docker-compose.yml`. Para subir tudo:
-
-```sh
-docker-compose up --build
-```
-
-Se quiser rodar apenas o worker manualmente dentro do container, execute:
-
-```sh
-docker-compose run --rm app python src/workers/knowledge_worker.py
-```
-
-### Rodando Localmente (sem Docker)
-
-1. **Ative o ambiente virtual:**
-   ```sh
+2. **Crie e ative o ambiente virtual:**
+   ```bash
+   python -m venv venv
    source venv/bin/activate  # Linux/macOS
    venv\Scripts\activate     # Windows
    ```
 
-2. **Instale as dependências:**
-   ```sh
+3. **Instale as dependências:**
+   ```bash
    pip install -r requirements.txt
    ```
 
-3. **Execute o worker:**
-   ```sh
-   python src/workers/knowledge_worker.py
+4. **Configure as variáveis de ambiente:**
+   Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
+   ```env
+   # Configurações do Banco de Dados
+   DATABASE_URL=postgresql://gwan_user:gwan_password@db:5432/gwan_db
+   POSTGRES_USER=gwan_user
+   POSTGRES_PASSWORD=gwan_password
+   POSTGRES_DB=gwan_db
+
+   # Configurações do RabbitMQ
+   RABBITMQ_HOST=rabbitmq.gwan.com.br
+   RABBITMQ_PORT=5672
+   RABBITMQ_USER=root
+   RABBITMQ_PASSWORD=pazdeDeus2025
+
+   # Configurações do MongoDB
+   MONGODB_URI=mongodb://mongodb.gwan.com.br:27017
+   MONGODB_DB=gwan
+
+   # Configurações do MinIO
+   MINIO_ENDPOINT=minio.gwan.com.br
+   MINIO_ACCESS_KEY=admin
+   MINIO_SECRET_KEY=pazdeDeus@2025
+   MINIO_SECURE=true
+   MINIO_TMP_FOLDER=tmp
+
+   # Configurações da API
+   API_V1_STR=/v1
+   PROJECT_NAME=Gwan Python App
+   DEBUG=false
+
+   # Configurações de Segurança
+   SECRET_KEY=sua_chave_secreta_aqui
+   ALGORITHM=HS256
+   ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+   # Configurações do OpenAI
+   OPENAI_API_KEY=sua_chave_api_aqui
    ```
 
-> **Obs:** Certifique-se de que as variáveis de ambiente necessárias (como conexão com RabbitMQ, MongoDB, etc.) estejam configuradas corretamente. 
+## 🚀 Executando a Aplicação
+
+### API REST
+
+```bash
+uvicorn src.main:app --reload --port 8000
+```
+
+### Workers
+
+```bash
+# Worker de Knowledge Base
+python src/workers/knowledge_worker.py
+
+# Worker de PDF
+python src/workers/pdf_worker.py
+```
+
+### Docker Compose
+
+```bash
+docker-compose up -d
+```
+
+## 📚 Documentação da API
+
+A documentação interativa da API está disponível em:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+## 🧪 Testes
+
+```bash
+# Executar todos os testes
+pytest
+
+# Executar testes com cobertura
+pytest --cov=src tests/
+```
+
+## 📁 Estrutura do Projeto
+
+```
+gwan-python-app/
+├── src/
+│   ├── api/
+│   │   └── v1/
+│   │       ├── endpoints/
+│   │       └── dependencies/
+│   ├── core/
+│   │   ├── repositories/
+│   │   ├── services/
+│   │   └── usecases/
+│   ├── infrastructure/
+│   │   ├── config/
+│   │   └── logging/
+│   ├── models/
+│   ├── workers/
+│   └── main.py
+├── tests/
+├── docs/
+├── .env
+├── .gitignore
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
+
+## 🤝 Contribuindo
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📝 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## 📫 Contato
+
+Rastaman - [@rastamansp](https://github.com/rastamansp)
+
+Link do Projeto: [https://github.com/rastamansp/gwan-python-app](https://github.com/rastamansp/gwan-python-app) 
